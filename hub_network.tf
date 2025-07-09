@@ -38,4 +38,3 @@ resource "azurerm_virtual_network_peering" "hub_to_spoke" {
 
   depends_on = [azurerm_virtual_network.spokes]
 }
-

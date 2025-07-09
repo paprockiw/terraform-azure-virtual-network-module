@@ -1,58 +1,61 @@
 
-resource "azurerm_resource_group" "spokes" {
+# Spoke networks
+resource "azurerm_virtual_network" "spokes" {
   for_each = var.spoke_vnets
-  name     = "rg-${each.key}"
-  location = var.location
+
+  name                = "${each.value.platform}-${each.value.environment}-vnet"
+  address_space       = [each.value.address_space]
+  location            = var.location
+  resource_group_name = each.value.resource_group_name
+
 }
 
-resource "azurerm_virtual_network" "spokes" {
-  for_each            = var.spoke_vnets
-  name                = "${local.network_name}-vnet-${each.key}"
-  address_space       = [each.value]
-  location            = var.location
-  resource_group_name = azurerm_resource_group.spokes[each.key].name
-
-  subnet {
-    name              = "snet-workload"
-    address_prefixes  = [cidrsubnet(each.value, 8, 0)]  # e.g., 10.1.0.0/24
+# Subnets for each spoke network
+resource "azurerm_subnet" "subnets" {
+  for_each = {
+    for item in flatten([
+      for vnet_key, vnet in var.spoke_vnets : [
+        for subnet in vnet.subnets : {
+          subnet_key         = "${vnet_key}-${subnet.name}"
+          subnet             = subnet
+          vnet_key           = vnet_key
+          address_space      = vnet.address_space
+          rg_name            = vnet.resource_group_name
+          vnet_name          = "${vnet.platform}-${vnet.environment}-vnet"
+        }
+      ]
+    ]) : item.subnet_key => item
   }
 
-}
+  name                 = "snet-${each.value.subnet.name}"
+  resource_group_name  = each.value.rg_name
+  virtual_network_name = each.value.vnet_name
+  address_prefixes     = [each.value.subnet.cidr]
 
-resource "azurerm_subnet" "spoke_subnets" {
-  for_each             = var.spoke_vnets
-  name                 = "snet-workload"
-  resource_group_name  = azurerm_resource_group.spokes[each.key].name
-  virtual_network_name = azurerm_virtual_network.spokes[each.key].name
-  address_prefixes     = [cidrsubnet(each.value, 8, 0)]
-}
-
-
-resource "azurerm_virtual_network_peering" "spoke_to_hub" {
-  for_each                  = var.spoke_vnets
-  name                      = "${each.key}-to-hub"
-  resource_group_name       = azurerm_resource_group.spokes[each.key].name
-  virtual_network_name      = azurerm_virtual_network.spokes[each.key].name
-  remote_virtual_network_id = azurerm_virtual_network.hub.id
-  allow_forwarded_traffic   = true
-  allow_gateway_transit     = false
-  use_remote_gateways       = false
-
-  depends_on = [azurerm_virtual_network.hub]
+  depends_on = [azurerm_virtual_network.spokes]
 }
 
 
 # Routes
-resource "azurerm_route_table" "spoke_rt" {
-  for_each            = var.spoke_vnets
-  name                = "rt-${each.key}-to-fw"
+resource "azurerm_route_table" "custom_routes" {
+  for_each = azurerm_subnet.subnets
+
+  name                = "${each.key}-rt"
   location            = var.location
-  resource_group_name = azurerm_resource_group.spokes[each.key].name
+  resource_group_name = each.value.resource_group_name
+
+  route {
+    name                   = "default-route"
+    address_prefix         = "0.0.0.0/0"
+    next_hop_type          = "VirtualAppliance"
+    next_hop_in_ip_address = "10.0.0.4"  # Example: NVA
+  }
 }
 
-resource "azurerm_subnet_route_table_association" "spoke_rt_assoc" {
-  for_each       = var.spoke_vnets
-  subnet_id      = azurerm_subnet.spoke_subnets[each.key].id
-  route_table_id = azurerm_route_table.spoke_rt[each.key].id
+resource "azurerm_subnet_route_table_association" "assoc" {
+  for_each = azurerm_subnet.subnets
+
+  subnet_id      = each.value.id
+  route_table_id = azurerm_route_table.custom_routes[each.key].id
 }
 
