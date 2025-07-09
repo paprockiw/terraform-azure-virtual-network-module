@@ -1,6 +1,7 @@
 # terraform-azure-virtual-network-module
 A basic virtual network configuration for Azure.
 
+NOTE: this is still a work in progress and hasn't seen usage yet.
 
 
 # Azure Hub-and-Spoke Network Infrastructure
