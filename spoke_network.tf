@@ -50,6 +50,13 @@ resource "azurerm_route_table" "custom_routes" {
     next_hop_type          = "VirtualAppliance"
     next_hop_in_ip_address = "10.0.0.4"  # Example: NVA
   }
+
+  route {
+    name                   = "route-to-hub"
+    address_prefix         = var.hub_vnet_cidr
+    next_hop_type          = "VirtualAppliance"
+    next_hop_in_ip_address = "10.0.0.4"
+  }
 }
 
 resource "azurerm_subnet_route_table_association" "assoc" {

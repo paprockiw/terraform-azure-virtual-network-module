@@ -22,8 +22,9 @@ resource "azurerm_virtual_network" "hub" {
     name              = "snet-shared"
     address_prefixes  = ["10.0.0.0/24"]
   }
-
 }
+
+# Maybe add config for hub subnets for direct management in TF?
 
 ## Network peering
 resource "azurerm_virtual_network_peering" "hub_to_spoke" {
