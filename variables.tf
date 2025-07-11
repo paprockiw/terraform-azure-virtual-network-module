@@ -1,9 +1,11 @@
 variable "location" {
-  default = "East US"
+  type = string
+  description = "Azure location for network"
 }
 
 variable "hub_vnet_cidr" {
-  default = "10.0.0.0/16"
+  type = string
+  description = "CIDR block for hub network"
 }
 
 variable "spoke_vnets" {
@@ -18,29 +20,4 @@ variable "spoke_vnets" {
       cidr = string
     }))
   }))
-
-  default = {
-    dev = {
-      environment         = "dev"
-      platform            = "web"
-      address_space       = "10.10.0.0/16"
-      resource_group_name = "dev-terraform-test"
-      subnets = [
-        { name = "workload", cidr = "10.10.1.0/24" },
-        { name = "database", cidr = "10.10.2.0/24" }
-      ]
-    }
-    prod = {
-      environment         = "prod"
-      platform            = "api"
-      address_space       = "10.20.0.0/16"
-      resource_group_name = "prod-terraform-test"
-      subnets = [
-        { name = "app", cidr = "10.20.1.0/24" },
-        { name = "db", cidr = "10.20.2.0/24" },
-        { name = "bastion", cidr = "10.20.3.0/24" }
-      ]
-    }
-  }
-
 }
